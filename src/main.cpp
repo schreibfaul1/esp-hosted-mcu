@@ -106,7 +106,10 @@ void setup() {
     Serial.println("----------------------------------");
     Serial.print("\n\n");
 
-    if (!LittleFS.begin(false, "/littlefs", 10, "storage")) printLittleFSContents();
+    if (!LittleFS.begin(false, "/littlefs", 10, "storage")){
+        Serial.printf("Error: Can't start littlefs");
+    }
+    printLittleFSContents();
     LittleFS.end();
 
     // Step 1: Initialize system
@@ -119,7 +122,7 @@ void setup() {
     Serial.printf("ESP-Hosted initialized successfully\n");
 
     // Step 2: Check version compatibility
-    if (compare_versions() <= 0) {
+    if (compare_versions() >= 0) {
         Serial.printf("Versions compatible - OTA not required\n");
         return;
     }
