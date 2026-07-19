@@ -5,11 +5,13 @@
 
 2) Paste the downloaded file into the "/data" folder
 
-3) Build + Upload
+3) go to PIOARDUINO: Erase Flash and Upload
 
-4) goto PIOARDUINO: "Upload Filesystem Image"
+4) Build + Upload
 
-5) Reset
+5) goto PIOARDUINO: "Upload Filesystem Image"
+
+6) Reset
 
 to erase everything close the serial terminal and go to PIOARDUINO: "Erase Flash"
 
@@ -95,40 +97,47 @@ int perform_slave_ota() {
 }
 // —————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 void setup() {
-    Serial.begin(115200);
-    vTaskDelay(1000);
-    Serial.print("\n\n");
-    Serial.println("----------------------------------");
-    Serial.printf("ESP32 Chip: %s\n", ESP.getChipModel());
-    Serial.printf("Arduino Version: %d.%d.%d\n", ESP_ARDUINO_VERSION_MAJOR, ESP_ARDUINO_VERSION_MINOR, ESP_ARDUINO_VERSION_PATCH);
-    Serial.printf("ESP-IDF Version: %d.%d.%d\n", ESP_IDF_VERSION_MAJOR, ESP_IDF_VERSION_MINOR, ESP_IDF_VERSION_PATCH);
-    Serial.printf("ARDUINO_LOOP_STACK_SIZE %d words (32 bit)\n", CONFIG_ARDUINO_LOOP_STACK_SIZE);
-    Serial.println("----------------------------------");
-    Serial.print("\n\n");
+    vTaskDelay(2000);
+    printf("\n\n");
+    printf("----------------------------------\n");
+    printf("ESP32 Chip: %s\n", ESP.getChipModel());
+    printf("Arduino Version: %d.%d.%d\n", ESP_ARDUINO_VERSION_MAJOR, ESP_ARDUINO_VERSION_MINOR, ESP_ARDUINO_VERSION_PATCH);
+    printf("ESP-IDF Version: %d.%d.%d\n", ESP_IDF_VERSION_MAJOR, ESP_IDF_VERSION_MINOR, ESP_IDF_VERSION_PATCH);
+    printf("ARDUINO_LOOP_STACK_SIZE %d words (32 bit)\n", CONFIG_ARDUINO_LOOP_STACK_SIZE);
+    printf("----------------------------------\n");
+    printf("\n\n");
 
-    if (!LittleFS.begin(false, "/littlefs", 10, "storage")){
-        Serial.printf("Error: Can't start littlefs");
+    bool littlefsMounted = LittleFS.begin(false, "/littlefs", 10, "storage");
+    if (!littlefsMounted) {
+        printf("LittleFS mount failed, trying one-time format recovery...\n");
+        littlefsMounted = LittleFS.begin(true, "/littlefs", 10, "storage");
     }
-    printLittleFSContents();
-    LittleFS.end();
+
+    if (!littlefsMounted) {
+        printf("Error: Can't start littlefs\n");
+    } else {
+        printf("littlefs started\n");
+        printLittleFSContents();
+        LittleFS.end();
+    }
 
     // Step 1: Initialize system
-    Serial.print("Initializing ESP-Hosted...\n");
+    printf("Initializing ESP-Hosted...\n");
     if (nvs_flash_init() != ESP_OK) Serial.print("nvs_flash_init() failed!\n");
-    if (esp_event_loop_create_default() != ESP_OK) Serial.print("esp_event_loop_create_default() failed!\n");
+    if (esp_event_loop_create_default() != ESP_OK) printf("esp_event_loop_create_default() failed!\n");
     ;
-    if (esp_hosted_init() != ESP_OK) Serial.print("esp_hosted_init() failed!\n");
-    if (esp_hosted_connect_to_slave() != ESP_OK) Serial.print("esp_hosted_connect_to_slave() failed!\n");
-    Serial.printf("ESP-Hosted initialized successfully\n");
+    if (esp_hosted_init() != ESP_OK) printf("esp_hosted_init() failed!\n");
+    if (esp_hosted_connect_to_slave() != ESP_OK) printf("esp_hosted_connect_to_slave() failed!\n");
+    printf("ESP-Hosted initialized successfully\n");
 
     // Step 2: Check version compatibility
     if (compare_versions() >= 0) {
-        Serial.printf("Versions compatible - OTA not required\n");
+        printf("Versions compatible - OTA not required\n");
         return;
     }
 
     // Step 3: Perform OTA update
-    Serial.printf("Starting slave OTA update...\n");
+    printf("Starting slave OTA update...\n");
     ret = perform_slave_ota();
     if(ret !=1) Serial.printf("Error %i\n\n", ret);
 }
