@@ -272,6 +272,7 @@ esp_err_t ota_littlefs_perform(bool delete_after_use)
 	uint8_t *chunk = malloc(CHUNK_SIZE); // Use heap for chunk buffer
 	size_t bytes_read;
 	esp_err_t ret = ESP_OK;
+	bool mounted_here = false;
 
 	if (!firmware_path || !chunk) {
 		ESP_LOGE(TAG, "Failed to allocate memory");
@@ -282,43 +283,50 @@ esp_err_t ota_littlefs_perform(bool delete_after_use)
 
 	ESP_LOGI(TAG, "Starting LittleFS OTA process");
 
-	/* Initialize LittleFS */
-	ESP_LOGI(TAG, "Initializing LittleFS filesystem");
-	esp_vfs_littlefs_conf_t conf = {
-		.base_path = "/littlefs",
-		.partition_label = "storage",
-		.format_if_mount_failed = true,
-		.dont_mount = false,
-	};
+	/* Initialize LittleFS if the caller has not already mounted it. */
+	ESP_LOGI(TAG, "Checking LittleFS filesystem");
+	size_t total = 0, used = 0;
+	ret = esp_littlefs_info("storage", &total, &used);
+	if (ret == ESP_OK) {
+		ESP_LOGI(TAG, "LittleFS filesystem already registered");
+	} else {
+		ESP_LOGI(TAG, "Initializing LittleFS filesystem");
+		esp_vfs_littlefs_conf_t conf = {
+			.base_path = "/littlefs",
+			.partition_label = "storage",
+			.format_if_mount_failed = true,
+			.dont_mount = false,
+		};
 
-	ret = esp_vfs_littlefs_register(&conf);
-	if (ret != ESP_OK) {
-		ESP_LOGE(TAG, "Failed to initialize LittleFS: %s", esp_err_to_name(ret));
-		free(firmware_path);
-		free(chunk);
-		return ESP_HOSTED_SLAVE_OTA_FAILED;
+		ret = esp_vfs_littlefs_register(&conf);
+		if (ret != ESP_OK) {
+			ESP_LOGE(TAG, "Failed to initialize LittleFS: %s", esp_err_to_name(ret));
+			free(firmware_path);
+			free(chunk);
+			return ESP_HOSTED_SLAVE_OTA_FAILED;
+		}
+
+		mounted_here = true;
+		ESP_LOGI(TAG, "LittleFS filesystem registered successfully");
 	}
-
-	ESP_LOGI(TAG, "LittleFS filesystem registered successfully");
 
 	/* Check if LittleFS partition has any files */
 	ret = check_littlefs_files();
 	if (ret == ESP_ERR_NOT_FOUND) {
 		ESP_LOGW(TAG, "OTA cannot proceed - no firmware files found in LittleFS partition");
-		esp_vfs_littlefs_unregister("storage");
+		if (mounted_here) esp_vfs_littlefs_unregister("storage");
 		free(firmware_path);
 		free(chunk);
 		return ESP_HOSTED_SLAVE_OTA_FAILED;
 	} else if (ret != ESP_OK) {
 		ESP_LOGE(TAG, "Failed to check LittleFS partition contents");
-		esp_vfs_littlefs_unregister("storage");
+		if (mounted_here) esp_vfs_littlefs_unregister("storage");
 		free(firmware_path);
 		free(chunk);
 		return ESP_HOSTED_SLAVE_OTA_FAILED;
 	}
 
 	/* Get filesystem info */
-	size_t total = 0, used = 0;
 	ret = esp_littlefs_info("storage", &total, &used);
 	if (ret != ESP_OK) {
 		ESP_LOGW(TAG, "Failed to get LittleFS partition information (%s)", esp_err_to_name(ret));
@@ -331,7 +339,7 @@ esp_err_t ota_littlefs_perform(bool delete_after_use)
 	ret = find_latest_firmware(firmware_path, 256);
 	if (ret != ESP_OK) {
 		ESP_LOGE(TAG, "Failed to find firmware file");
-		esp_vfs_littlefs_unregister("storage");
+		if (mounted_here) esp_vfs_littlefs_unregister("storage");
 		free(firmware_path);
 		free(chunk);
 		return ESP_HOSTED_SLAVE_OTA_FAILED;
@@ -344,7 +352,7 @@ esp_err_t ota_littlefs_perform(bool delete_after_use)
 	ret = parse_image_header_from_file(firmware_path, &firmware_size, new_app_version, sizeof(new_app_version));
 	if (ret != ESP_OK) {
 		ESP_LOGE(TAG, "Failed to parse image header: %s", esp_err_to_name(ret));
-		esp_vfs_littlefs_unregister("storage");
+		if (mounted_here) esp_vfs_littlefs_unregister("storage");
 		free(firmware_path);
 		free(chunk);
 		return ESP_HOSTED_SLAVE_OTA_FAILED;
@@ -368,7 +376,7 @@ esp_err_t ota_littlefs_perform(bool delete_after_use)
 		if (strcmp(new_app_version, current_version_str) == 0) {
 			ESP_LOGW(TAG, "Current slave firmware version (%s) is the same as new version (%s). Skipping OTA.",
 					current_version_str, new_app_version);
-			esp_vfs_littlefs_unregister("storage");
+			if (mounted_here) esp_vfs_littlefs_unregister("storage");
 			free(firmware_path);
 			free(chunk);
 			return ESP_HOSTED_SLAVE_OTA_NOT_REQUIRED;
@@ -387,7 +395,7 @@ esp_err_t ota_littlefs_perform(bool delete_after_use)
 	firmware_file = fopen(firmware_path, "rb");
 	if (firmware_file == NULL) {
 		ESP_LOGE(TAG, "Failed to open firmware file: %s", firmware_path);
-		esp_vfs_littlefs_unregister("storage");
+		if (mounted_here) esp_vfs_littlefs_unregister("storage");
 		free(firmware_path);
 		free(chunk);
 		return ESP_FAIL;
@@ -400,7 +408,7 @@ esp_err_t ota_littlefs_perform(bool delete_after_use)
 	if (ret != ESP_OK) {
 		ESP_LOGE(TAG, "Failed to begin OTA: %s", esp_err_to_name(ret));
 		fclose(firmware_file);
-		esp_vfs_littlefs_unregister("storage");
+		if (mounted_here) esp_vfs_littlefs_unregister("storage");
 		free(firmware_path);
 		free(chunk);
 		return ESP_HOSTED_SLAVE_OTA_FAILED;
@@ -412,7 +420,7 @@ esp_err_t ota_littlefs_perform(bool delete_after_use)
 		if (ret != ESP_OK) {
 			ESP_LOGE(TAG, "Failed to write OTA chunk: %s", esp_err_to_name(ret));
 			fclose(firmware_file);
-			esp_vfs_littlefs_unregister("storage");
+			if (mounted_here) esp_vfs_littlefs_unregister("storage");
 			free(firmware_path);
 			free(chunk);
 			return ESP_HOSTED_SLAVE_OTA_FAILED;
@@ -425,7 +433,7 @@ esp_err_t ota_littlefs_perform(bool delete_after_use)
 	ret = esp_hosted_slave_ota_end();
 	if (ret != ESP_OK) {
 		ESP_LOGE(TAG, "Failed to end OTA: %s", esp_err_to_name(ret));
-		esp_vfs_littlefs_unregister("storage");
+		if (mounted_here) esp_vfs_littlefs_unregister("storage");
 		free(firmware_path);
 		free(chunk);
 		return ESP_HOSTED_SLAVE_OTA_FAILED;
@@ -442,7 +450,7 @@ esp_err_t ota_littlefs_perform(bool delete_after_use)
 		}
 	}
 
-	esp_vfs_littlefs_unregister("storage");
+	if (mounted_here) esp_vfs_littlefs_unregister("storage");
 
 	/* Clean up allocated memory */
 	free(firmware_path);
