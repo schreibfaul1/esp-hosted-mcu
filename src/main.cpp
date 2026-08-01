@@ -37,11 +37,11 @@ static void printLittleFSContents()
     DIR *dir = opendir("/littlefs");
     if (dir == nullptr)
     {
-        Serial.println("can't open /littlefs.");
+        printf("can't open /littlefs.\n");
         return;
     }
 
-    Serial.println("content of /littlefs:");
+    printf("content of /littlefs:\n");
 
     struct dirent *entry;
     bool foundFile = false;
@@ -57,17 +57,17 @@ static void printLittleFSContents()
         File file = LittleFS.open(path, "r");
         if (!file)
         {
-            Serial.printf("  %s (could not be opened)\n", path.c_str());
+            printf("  %s (could not be opened)\n", path.c_str());
             continue;
         }
 
-        Serial.printf("  %s - %u Bytes\n", path.c_str(), static_cast<unsigned>(file.size()));
+        printf("  %s - %u Bytes\n", path.c_str(), static_cast<unsigned>(file.size()));
         file.close();
     }
 
     if (!foundFile)
     {
-        Serial.println("  No files found.");
+        printf("  No files found.");
     }
 
     closedir(dir);
@@ -83,7 +83,7 @@ int compare_versions()
     ret = esp_hosted_get_coprocessor_fwversion(&slave_version);
     if (ret != ESP_OK)
     {
-        Serial.printf("ret: %s\n", esp_err_to_name(ret));
+        printf("ret: %s\n", esp_err_to_name(ret));
     }
 
     uint32_t slave_ver = ESP_HOSTED_VERSION_VAL(slave_version.major1, slave_version.minor1, slave_version.patch1);
@@ -91,17 +91,17 @@ int compare_versions()
 
     if (host_ver == slave_ver)
     {
-        Serial.printf("Version match: Host [%u.%u.%u] > Co-proc [%u.%u.%u] perfect\n", ESP_HOSTED_VERSION_PRINTF_ARGS(host_ver), ESP_HOSTED_VERSION_PRINTF_ARGS(slave_ver));
+        printf("Version match: Host [%u.%u.%u] > Co-proc [%u.%u.%u] perfect\n", ESP_HOSTED_VERSION_PRINTF_ARGS(host_ver), ESP_HOSTED_VERSION_PRINTF_ARGS(slave_ver));
         return 0; // Versions match
     }
     else if (host_ver > slave_ver)
     {
-        Serial.printf("Version mismatch: Host [%u.%u.%u] > Co-proc [%u.%u.%u] ==> Upgrade co-proc\n", ESP_HOSTED_VERSION_PRINTF_ARGS(host_ver), ESP_HOSTED_VERSION_PRINTF_ARGS(slave_ver));
+        printf("Version mismatch: Host [%u.%u.%u] > Co-proc [%u.%u.%u] ==> Upgrade co-proc\n", ESP_HOSTED_VERSION_PRINTF_ARGS(host_ver), ESP_HOSTED_VERSION_PRINTF_ARGS(slave_ver));
         return -1; // Host newer, slave needs upgrade
     }
     else
     {
-        Serial.printf("Version mismatch: Host [%u.%u.%u] < Co-proc [%u.%u.%u] ==> Upgrade host\n", ESP_HOSTED_VERSION_PRINTF_ARGS(host_ver), ESP_HOSTED_VERSION_PRINTF_ARGS(slave_ver));
+        printf("Version mismatch: Host [%u.%u.%u] < Co-proc [%u.%u.%u] ==> Upgrade host\n", ESP_HOSTED_VERSION_PRINTF_ARGS(host_ver), ESP_HOSTED_VERSION_PRINTF_ARGS(slave_ver));
         return 1; // Slave newer, host needs upgrade
     }
 }
@@ -109,7 +109,7 @@ int compare_versions()
 int perform_slave_ota()
 {
     uint8_t delete_after_flash = 0;
-    Serial.printf("Starting OTA via LittleFS\n");
+    printf("Starting OTA via LittleFS\n");
 #ifdef CONFIG_OTA_DELETE_FILE_AFTER_FLASH
     delete_after_flash = 1;
 #endif
@@ -123,7 +123,7 @@ static void activate_and_restart_slave()
 
     if (esp_hosted_get_coprocessor_fwversion(&current_slave_version) == ESP_OK)
     {
-        Serial.printf("Slave firmware before activation: %u.%u.%u\n",
+        printf("Slave firmware before activation: %u.%u.%u\n",
                       current_slave_version.major1,
                       current_slave_version.minor1,
                       current_slave_version.patch1);
@@ -136,7 +136,7 @@ static void activate_and_restart_slave()
     }
     else
     {
-        Serial.println("Could not detect slave version before activation");
+        printf("Could not detect slave version before activation\n");
     }
 
     if (activate_supported)
@@ -144,35 +144,35 @@ static void activate_and_restart_slave()
         esp_err_t activate_ret = esp_hosted_slave_ota_activate();
         if (activate_ret == ESP_OK)
         {
-            Serial.println("New slave firmware activated - slave will reboot");
+            printf("New slave firmware activated - slave will reboot\n");
         }
         else
         {
-            Serial.printf("Failed to activate slave firmware: %s\n", esp_err_to_name(activate_ret));
+            printf("Failed to activate slave firmware: %s\n", esp_err_to_name(activate_ret));
         }
     }
     else
     {
-        Serial.println("Activate API not supported by current slave firmware");
+        printf("Activate API not supported by current slave firmware\n");
     }
 
-    Serial.println("Restarting host to resync with slave...");
+    printf("Restarting host to resync with slave...\n");
     vTaskDelay(pdMS_TO_TICKS(2000));
     esp_restart();
 }
 // —————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 void setup()
 {
-    Serial.begin(115200);
+    // Serial.begin(115200);
     vTaskDelay(1000);
-    Serial.print("\n\n");
-    Serial.println("----------------------------------");
-    Serial.printf("ESP32 Chip: %s\n", ESP.getChipModel());
-    Serial.printf("Arduino Version: %d.%d.%d\n", ESP_ARDUINO_VERSION_MAJOR, ESP_ARDUINO_VERSION_MINOR, ESP_ARDUINO_VERSION_PATCH);
-    Serial.printf("ESP-IDF Version: %d.%d.%d\n", ESP_IDF_VERSION_MAJOR, ESP_IDF_VERSION_MINOR, ESP_IDF_VERSION_PATCH);
-    Serial.printf("ARDUINO_LOOP_STACK_SIZE %d words (32 bit)\n", CONFIG_ARDUINO_LOOP_STACK_SIZE);
-    Serial.println("----------------------------------");
-    Serial.print("\n\n");
+    printf("\n\n");
+    printf("----------------------------------\n");
+    printf("ESP32 Chip: %s\n", ESP.getChipModel());
+    printf("Arduino Version: %d.%d.%d\n", ESP_ARDUINO_VERSION_MAJOR, ESP_ARDUINO_VERSION_MINOR, ESP_ARDUINO_VERSION_PATCH);
+    printf("ESP-IDF Version: %d.%d.%d\n", ESP_IDF_VERSION_MAJOR, ESP_IDF_VERSION_MINOR, ESP_IDF_VERSION_PATCH);
+    printf("ARDUINO_LOOP_STACK_SIZE %d words (32 bit)\n", CONFIG_ARDUINO_LOOP_STACK_SIZE);
+    printf("----------------------------------");
+    printf("\n\n");
 
     // ... Ausgaben ...
 
@@ -183,59 +183,58 @@ void setup()
 
     if (p)
     {
-        Serial.printf("LittleFS partition: addr=0x%lx size=0x%lx label=%s\n",
-                      p->address, p->size, p->label);
+        printf("LittleFS partition: addr=0x%lx size=0x%lx label=%s\n", p->address, p->size, p->label);
     }
     else
     {
-        Serial.println("LittleFS partition 'storage' not found");
+        printf("LittleFS partition 'storage' not found\n");
     }
 
     // LittleFS mounten und offen lassen!
     if (!LittleFS.begin(false, "/littlefs", 10, "storage"))
     {
-        Serial.printf("Error: Can't start littlefs\n");
+        printf("Error: Can't start littlefs\n");
         return;
     }
     printLittleFSContents();
     // LittleFS.end();  // <-- NICHT HIER! Erst nach dem OTA
 
     // ESP-Hosted initialisieren
-    Serial.print("Initializing ESP-Hosted...\n");
+    printf("Initializing ESP-Hosted...\n");
     if (nvs_flash_init() != ESP_OK)
-        Serial.print("nvs_flash_init() failed!\n");
+        printf("nvs_flash_init() failed!\n");
     if (esp_event_loop_create_default() != ESP_OK)
-        Serial.print("esp_event_loop_create_default() failed!\n");
+        printf("esp_event_loop_create_default() failed!\n");
     if (esp_hosted_init() != ESP_OK)
-        Serial.print("esp_hosted_init() failed!\n");
+        printf("esp_hosted_init() failed!\n");
     if (esp_hosted_connect_to_slave() != ESP_OK)
-        Serial.print("esp_hosted_connect_to_slave() failed!\n");
-    Serial.printf("ESP-Hosted initialized successfully\n");
+        printf("esp_hosted_connect_to_slave() failed!\n");
+    printf("ESP-Hosted initialized successfully\n");
 
     // Version prüfen
     if (compare_versions() >= 0)
     {
-        Serial.printf("Versions compatible - OTA not required\n");
+        printf("Versions compatible - OTA not required\n");
         LittleFS.end(); // Erst hier enden, wenn kein OTA nötig
         return;
     }
 
     // OTA durchführen
-    Serial.printf("Starting slave OTA update...\n");
+    printf("Starting slave OTA update...\n");
     ret = perform_slave_ota();
     if (ret == ESP_HOSTED_SLAVE_OTA_COMPLETED)
     {
-        Serial.printf("OTA completed successfully!\n");
+        printf("OTA completed successfully!\n");
         LittleFS.end();
         activate_and_restart_slave();
     }
     else if (ret == ESP_HOSTED_SLAVE_OTA_NOT_REQUIRED)
     {
-        Serial.printf("OTA not required - slave firmware is up to date\n");
+        printf("OTA not required - slave firmware is up to date\n");
     }
     else
     {
-        Serial.printf("OTA failed with status %d\n\n", ret);
+        printf("OTA failed with status %d\n\n", ret);
     }
 
     LittleFS.end(); // Nach dem OTA erst enden
