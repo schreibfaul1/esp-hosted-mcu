@@ -1,6 +1,9 @@
 
 /* Program to update the FW of the WiFI chip ESP32C6 on an ESP32-P4 board
 
+❗❗❗  Preparation: If the ESP32-C6 is not connected as defined in "pins_arduino.h",
+                     the pins must be changed in platformio.ini.
+
 1) Select and download the appropriate FW version from: https://esphome.github.io/esp-hosted-firmware/manifest/esp32c6.json
 
 2) Paste the downloaded file into the "/data" folder
@@ -19,6 +22,7 @@ to erase everything close the serial terminal and go to PIOARDUINO: "Erase Flash
 #include "FS.h"
 #include "LittleFS.h"
 #include "dirent.h"
+#include "pins_arduino.h"
 #include "esp_app_desc.h"
 #include "esp_hosted.h"
 #include "esp_hosted_api_types.h"
@@ -30,6 +34,8 @@ to erase everything close the serial terminal and go to PIOARDUINO: "Erase Flash
 
 esp_hosted_coprocessor_fwver_t host_version = {0}, slave_version = {0};
 esp_err_t ret = ESP_OK;
+
+
 
 // —————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 static void printLittleFSContents()
