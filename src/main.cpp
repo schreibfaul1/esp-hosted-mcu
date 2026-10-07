@@ -1,8 +1,10 @@
 
 /* Program to update the FW of the WiFI chip ESP32C6 on an ESP32-P4 board
 
-❗❗❗  Preparation: If the ESP32-C6 is not connected as defined in "pins_arduino.h",
+❗❗❗  Preparation: The pioarduino-IDE and ESP-Crash-Decoder extensions are installed,
+                     If the ESP32-C6 is not connected as defined in "pins_arduino.h",
                      the pins must be changed in platformio.ini.
+
 
 1) Select and download the appropriate FW version from: https://esphome.github.io/esp-hosted-firmware/manifest/esp32c6.json
 
